@@ -1,6 +1,4 @@
 fastapi
-pydantic
+uvicorn
 python-dotenv
-firebase-admin
 elevenlabs
-uvicorn[standard]
