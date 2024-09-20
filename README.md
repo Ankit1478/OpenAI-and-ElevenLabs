@@ -1,34 +1,46 @@
 # Sound Effects Extraction and Transcription API
 
-This project provides an API for extracting sound effects (SFX) from text passages and transcribing audio files using OpenAI's Whisper model. It integrates with Firebase for storing and retrieving sound effect data, Google Cloud Storage for saving sound files, and OpenAI for generating embeddings and transcriptions.
+This project provides two APIs:
+
+1. An Express-based API for extracting sound effects (SFX) from text passages, transcribing audio files, and generating sound effects using OpenAI's GPT and Whisper models, Firebase, and Google Cloud Storage.
+2. A FastAPI-based microservice for generating sound effects using the ElevenLabs API.
 
 ## Features
 
-- **Extract SFX from Text**: Parses a given text to extract parts that can be used to create sound effects using OpenAI's GPT model.
-- **Save and Retrieve Sound Effects**: Saves generated sound effects to Firebase and Google Cloud Storage, reuses similar effects if they already exist based on cosine similarity.
-- **Audio Transcription**: Upload an audio file to get word-level transcription using OpenAI's Whisper model.
-- **Cosine Similarity Matching**: Finds similar phrases by calculating the cosine similarity of phrase embeddings.
+- **Extract SFX from Text:** Parse a given text to extract parts that can be used to create sound effects using OpenAI's GPT model.
+- **Save and Retrieve Sound Effects:** Save generated sound effects in Firebase and Google Cloud Storage and reuse similar effects if they already exist based on cosine similarity.
+- **Audio Transcription:** Upload an audio file to get word-level transcription using OpenAI's Whisper model.
+- **Sound Effect Generation:** Use the ElevenLabs API to generate sound effects from text, returning audio in audio/mpeg format.
+- **Cosine Similarity Matching:** Find similar phrases by calculating the cosine similarity of phrase embeddings.
 
 ## Technologies Used
 
-- **Backend**: Express.js, Node.js
-- **Storage**: Firebase Realtime Database, Firebase Cloud Storage
-- **AI Models**:
-  - OpenAI GPT-4 for SFX extraction and embeddings
-  - OpenAI Whisper for audio transcription
-- **File Handling**: Multer for file uploads
-- **External Services**:
-  - Google Cloud Storage for storing generated sound effects
-  - Axios for making HTTP requests
-  - FFmpeg (through a separate Python API) for generating sound effects
+### Backend (Express API)
+- Express.js: API server for handling sound extraction and transcription
+- Firebase: Storage for sound effects and embeddings
+- Google Cloud Storage: Store audio files
+- OpenAI GPT-4: Text extraction and embeddings
+- OpenAI Whisper: Audio transcription
+- Multer: File upload handler
+
+### Backend (FastAPI API)
+- FastAPI: API server for generating sound effects
+- ElevenLabs API: Sound effects generation from text
+- Pydantic: Data validation
+
+### Shared
+- dotenv: Load environment variables
+- Axios: HTTP requests for external services
 
 ## Requirements
 
-- Node.js (>=16.x)
-- Firebase account with a service account JSON file
+- Node.js (>=16.x) and Python (>=3.8)
+- Firebase with service account JSON
 - OpenAI API key
+- ElevenLabs API key
 - Google Cloud Storage bucket
-- Python API for sound effect generation (referenced by the code as https://pythonapi-cozl.onrender.com/generate_sound_effects)
+- FFmpeg API (or any sound effect generation service) for the Express backend
+- Python and Uvicorn
 
 ## Installation
 
@@ -38,12 +50,14 @@ This project provides an API for extracting sound effects (SFX) from text passag
    cd sfx-extraction-api
    ```
 
-2. Install dependencies:
+### For Express API
+
+2. Install Node.js dependencies:
    ```bash
    npm install
    ```
 
-3. Set up Firebase by adding your `serviceAccount` JSON file to the project root.
+3. Set up Firebase by adding your service account JSON file to the project root.
 
 4. Create a `.env` file and add the following environment variables:
    ```
@@ -52,87 +66,99 @@ This project provides an API for extracting sound effects (SFX) from text passag
    storageBucket=YOUR_FIREBASE_STORAGE_BUCKET
    ```
 
-5. Start the server:
+5. Start the Express server:
    ```bash
    npm run start
    ```
 
+### For FastAPI API
+
+2. Install Python dependencies:
+   ```bash
+   pip install fastapi uvicorn python-dotenv elevenlabs
+   ```
+
+3. Create a `.env` file for the FastAPI app and add the ElevenLabs API key:
+   ```
+   ELEVENLABS_API_KEY=your-elevenlabs-api-key
+   ```
+
+4. Start the FastAPI server:
+   ```bash
+   uvicorn main:app --host 0.0.0.0 --port 8000
+   ```
+
 ## API Endpoints
 
-### 1. Extract Sound Effects from Text
+### Express API
 
-- **Endpoint**: `POST /extract-sfx`
-- **Description**: Extracts parts of a text passage that can be used for generating sound effects.
-- **Request**:
+#### Extract Sound Effects from Text
+
+- **Endpoint:** `POST /extract-sfx`
+- **Description:** Extracts sound effect phrases from a text passage.
+- **Request:**
   ```json
   {
     "text": "The sword clanged against the shield, thunder roared in the distance."
   }
   ```
-- **Response**:
-  ```json
-  {
-    "phrases": [
-      "sword clanged against the shield",
-      "thunder roared"
-    ]
-  }
-  ```
-
-### 2. Save Sound Effects
-
-- **Endpoint**: `POST /save-sound-effects`
-- **Description**: Saves generated sound effects in Firebase and Google Cloud Storage. Reuses sound effects if a similar one already exists.
-- **Request**:
+- **Response:**
   ```json
   {
     "phrases": ["sword clanged against the shield", "thunder roared"]
   }
   ```
-- **Response**:
+
+#### Save Sound Effects
+
+- **Endpoint:** `POST /save-sound-effects`
+- **Description:** Saves generated sound effects in Firebase and Google Cloud Storage, reusing sound effects if a similar one already exists.
+- **Request:**
+  ```json
+  {
+    "phrases": ["sword clanged against the shield", "thunder roared"]
+  }
+  ```
+- **Response:**
   ```json
   {
     "soundEffects": [
-      {
-        "phrase": "sword clanged against the shield",
-        "downloadURL": "https://storage.googleapis.com/yourbucket/sound_effects/sword_clanged.mp3"
-      },
-      {
-        "phrase": "thunder roared",
-        "downloadURL": "https://storage.googleapis.com/yourbucket/sound_effects/thunder_roared.mp3"
-      }
+      { "phrase": "sword clanged against the shield", "downloadURL": "..." },
+      { "phrase": "thunder roared", "downloadURL": "..." }
     ]
   }
   ```
 
-### 3. Transcribe Audio File
+#### Transcribe Audio File
 
-- **Endpoint**: `POST /transcribe-audio`
-- **Description**: Upload an audio file and receive word-level transcriptions with timestamps.
-- **Request**: Multipart form-data with an audio file.
-- **Response**:
+- **Endpoint:** `POST /transcribe-audio`
+- **Description:** Upload an audio file for transcription using OpenAI's Whisper.
+- **Request:** Multipart form-data with an audio file.
+- **Response:**
   ```json
   {
     "transcription": {
       "transcription": "The quick brown fox jumps over the lazy dog.",
-      "timestamps": [
-        { "word": "The", "start": 0.1, "end": 0.3 },
-        { "word": "quick", "start": 0.4, "end": 0.5 },
-        ...
-      ]
+      "timestamps": [ ... ]
     }
   }
   ```
 
-## How it Works
+### FastAPI API
 
-1. **SFX Extraction**: A user submits a text passage. The OpenAI GPT-4 model identifies potential sound effects from the text, which are returned in a list.
+#### Generate Sound Effects
 
-2. **Cosine Similarity Matching**: Each phrase is embedded using OpenAI's text-embedding model, and compared to existing sound effects using cosine similarity. If a similar phrase is found (with a similarity score > 0.9), the existing sound effect is reused.
-
-3. **Sound Effect Generation**: If no similar sound effect is found, a request is sent to a Python API to generate a new sound effect, which is saved to Firebase and Google Cloud Storage.
-
-4. **Audio Transcription**: A user uploads an audio file, which is transcribed using OpenAI's Whisper model, returning word-level transcription with timestamps.
+- **Endpoint:** `POST /generate_sound_effects`
+- **Description:** Generate sound effects from text using the ElevenLabs API.
+- **Request:**
+  ```json
+  {
+    "phrases": ["thunder roared", "sword clanged against the shield"],
+    "duration_seconds": 10,
+    "prompt_influence": 0.3
+  }
+  ```
+- **Response:** Audio in audio/mpeg format.
 
 ## How to Contribute
 
